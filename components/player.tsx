@@ -1,65 +1,57 @@
-/*import React, { useState, useEffect } from 'react';
-import { View, Button, Text } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, Button } from 'react-native';
 import { Audio } from 'expo-av';
 
-interface AudioPlayerProps {
-  uri: string;
-}
+interface AppProps {}
 
-const AudioPlayer: React.FC<AudioPlayerProps> = ({ uri }) => {
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
+const AudioPlayer: React.FC<AppProps> = () => {
+  const [sound, setSound] = useState<Audio.Sound | undefined>();
   const [isPlaying, setIsPlaying] = useState(false);
 
-  useEffect(() => {
-    // Load the audio file
-    const loadSound = async () => {
-      console.log('Loading Sound');
-      const { sound } = await Audio.Sound.createAsync({ uri });
-      setSound(sound);
-    };
-
-    loadSound();
-
-    // Unload the sound when component unmounts
-    return () => {
-      if (sound) {
-        console.log('Unloading Sound');
-        sound.unloadAsync();
-      }
-    };
-  }, [uri]);
-
-  const playSound = async () => {
-    if (sound) {
-      console.log('Playing Sound');
+  async function playSound() {
+    console.log('Loading Sound');
+    if (!sound) {
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        require('@/assets/test.mp3')
+      );
+      setSound(newSound);
+      await newSound.playAsync();
+    } else {
       await sound.playAsync();
-      setIsPlaying(true);
     }
-  };
+    setIsPlaying(true);
+    console.log('Playing Sound');
+  }
 
-  const pauseSound = async () => {
+  async function stopSound() {
+    console.log('Stopping Sound');
     if (sound) {
-      console.log('Pausing Sound');
-      await sound.pauseAsync();
-      setIsPlaying(false);
-    }
-  };
-
-  const stopSound = async () => {
-    if (sound) {
-      console.log('Stopping Sound');
       await sound.stopAsync();
+      await sound.setPositionAsync(0);
       setIsPlaying(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    return sound
+      ? () => {
+          console.log('Unloading Sound');
+          sound.unloadAsync();
+        }
+      : undefined;
+  }, [sound]);
 
   return (
-    <View>
-      <Text>Audio Player</Text>
-      <Button title={isPlaying ? 'Pause' : 'Play'} onPress={isPlaying ? pauseSound : playSound} />
-      <Button title="Stop" onPress={stopSound} />
+    <View style={styles.container}>
+      <Button title={isPlaying ? "Stop Sound" : "Play Sound"} onPress={isPlaying ? stopSound : playSound} />
     </View>
   );
 };
 
-export default AudioPlayer;*/
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: '#ecf0f1',
+  },
+});
+
+export default AudioPlayer;
