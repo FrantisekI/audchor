@@ -1,15 +1,18 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import { initDatabase, addMultipleSongs } from '@/utils/db';
 
 export default function Layout() {
+    const [initialized, setInitialized] = useState(false);
     useEffect(() => {
         async function initialize() {
             try {
                 // Initialize database
-                await initDatabase();
+                await initDatabase().then(() => {
+                    setInitialized(true)
+                    console.log('Database initialized')});
 
                 // Request permissions
                 const { status } = await MediaLibrary.requestPermissionsAsync();
@@ -24,8 +27,11 @@ export default function Layout() {
                 });
 
                 // Process each music file
-                addMultipleSongs(media.assets);
-
+                if (initialized) {
+                    addMultipleSongs(media.assets);
+                    console.log('Songs added');
+                }
+                //
                 console.log('Initialization complete');
             } catch (error) {
                 console.error('Error during initialization:', error);

@@ -14,24 +14,27 @@ const initDatabase = async () => {
         PRAGMA journal_mode = WAL;
         CREATE TABLE IF NOT EXISTS songs (
             id INTEGER PRIMARY KEY NOT NULL, 
-            name TEXT NOT NULL, 
-            pathto TEXT NOT NULL);
+            name TEXT NOT NULL UNIQUE, 
+            pathto TEXT NOT NULL
+            );
     
         CREATE TABLE IF NOT EXISTS tags (
             id INTEGER PRIMARY KEY NOT NULL,
-            name TEXT NOT NULL,
+            name TEXT NOT NULL UNIQUE,
             color TEXT NOT NULL);
     
         CREATE TABLE IF NOT EXISTS attributes (
             id INTEGER PRIMARY KEY NOT NULL,
-            name TEXT NOT NOT NULL,
+            name TEXT NOT NULL,
             action TEXT NOT NULL,
             priority INTEGER NOT NULL);
     
         CREATE TABLE IF NOT EXISTS song_tags (
-            PRIMARY KEY (song_id, tag_id),
             song_id INTEGER NOT NULL,
-            tag_id INTEGER NOT NULL);
+            tag_id INTEGER NOT NULL,
+            PRIMARY KEY (song_id, tag_id),
+            FOREIGN KEY (song_id) REFERENCES songs (id),
+            FOREIGN KEY (tag_id) REFERENCES tags (id));
         `);
 
         console.log('Database initialized');
@@ -53,29 +56,63 @@ const addSong = async (name: string, pathto: string): Promise<void> => {
     const db = await SQLite.openDatabaseAsync('MainDB');
     if (!db) throw new Error('Database not initialized');
 
-    const statement = await db.prepareAsync(
+    const prepareAddSong = await db.prepareAsync(
         'INSERT OR IGNORE INTO songs (name, pathto) VALUES ($name, $pathto)'
     );
+
+
+    const prepareAddTag = await db.prepareAsync(
+        'INSERT OR IGNORE INTO tags (name, color) VALUES ($name, $color)'
+    );
+
+    const prepareAddSongTag = await db.prepareAsync(
+        'INSERT OR IGNORE INTO song_tags (song_id, tag_id) VALUES ($song_id, $tag_id)'
+    );
+
     try {
-        let result = await statement.executeAsync({ $name: name, $pathto: pathto });
+        let result = await prepareAddSong.executeAsync({ $name: name, $pathto: pathto });
         console.log(result.lastInsertRowId, result.changes);
-      } finally {
-        await statement.finalizeAsync();
-      }
-    
+    } finally {
+        await prepareAddSong.finalizeAsync();
+    }
+
 };
 
 const addMultipleSongs = async (assets: MediaLibrary.Asset[]): Promise<void> => {
+    console.log('bob')
     const db = await SQLite.openDatabaseAsync('MainDB');
     if (!db) throw new Error('Database not initialized');
 
     const statement = await db.prepareAsync(
-        'INSERT OR IGNORE INTO songs (name, pathto) VALUES ($name, $pathto)'
+        'INSERT INTO songs (name, pathto) VALUES ($name, $pathto) ON CONFLICT($name) DO NOTHING'
     );
+
+    const prepareAddTag = await db.prepareAsync(
+        'INSERT OR IGNORE INTO tags (name, color) VALUES ($name, $color)'
+    );
+
+    const prepareAddSongTag = await db.prepareAsync(
+        'INSERT OR IGNORE INTO song_tags (song_id, tag_id) VALUES ($song_id, $tag_id)'
+    );
+
     try {
         for (const asset of assets) {
             let result = await statement.executeAsync({ $name: asset.filename, $pathto: asset.uri });
+            let song_id = await db.getFirstAsync(`SELECT id FROM songs WHERE 
+                name = $name AND pathto = $pathto 
+                LIMIT 1`,
+                { $name: (asset.filename), $pathto: (asset.uri) }) as { id: number }[];
+
+
+            console.log('song id', song_id[0].id);
+            const tagsByPath = asset.uri.split('/');
+            const tags = tagsByPath.slice(5, tagsByPath.length - 1);
+            console.log(tags);
+            let tag = await prepareAddTag.executeAsync({ $name: 'tag', $color: 'red' });
             console.log(result.lastInsertRowId, result.changes);
+            for (const line of await db.getAllAsync('SELECT * FROM tags')) {
+                console.log(line);
+            };
         };
     } finally {
         await statement.finalizeAsync();
