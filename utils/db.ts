@@ -97,21 +97,38 @@ const addMultipleSongs = async (assets: MediaLibrary.Asset[]): Promise<void> => 
 
     try {
         for (const asset of assets) {
-            let result = await statement.executeAsync({ $name: asset.filename, $pathto: asset.uri });
-            let song_id = await db.getFirstAsync(`SELECT id FROM songs WHERE 
-                name = $name AND pathto = $pathto 
-                LIMIT 1`,
-                { $name: (asset.filename), $pathto: (asset.uri) }) as { id: number }[];
+            if (await db.getFirstAsync(`SELECT id FROM songs WHERE 
+                name = $name`) == null) {
+
+                let result = await statement.executeAsync({ $name: asset.filename, $pathto: asset.uri });
+                console.log(result);
 
 
-            console.log('song id', song_id[0].id);
-            const tagsByPath = asset.uri.split('/');
-            const tags = tagsByPath.slice(5, tagsByPath.length - 1);
-            console.log(tags);
-            let tag = await prepareAddTag.executeAsync({ $name: 'tag', $color: 'red' });
-            console.log(result.lastInsertRowId, result.changes);
-            for (const line of await db.getAllAsync('SELECT * FROM tags')) {
-                console.log(line);
+
+
+                const tagsByPath = asset.uri.split('/');
+                const tags = tagsByPath.slice(5, tagsByPath.length - 1);
+                for (const tag of tags) {
+                    const tagExist = await db.getFirstAsync(`SELECT id FROM tags WHERE name = $name`, { $name: tag }) as { id: number }[];
+                    let tagId : number;
+                    if (tagExist == null) {
+                        let tagResult = await prepareAddTag.executeAsync({ $name: tag, $color: 'pink' });
+                        console.log(tagResult);
+                        tagId = tagResult.lastInsertRowId;
+                    }
+                    else {
+                        tagId = tagExist[0].id;
+                        console.log('Tag already exists');
+                    }
+                    //add song tag relation
+                    let songTagResult = await prepareAddSongTag.executeAsync({ $song_id: result.lastInsertRowId, $tag_id: tagId });
+                    
+                }
+                console.log(tags);
+                let tag = await prepareAddTag.executeAsync({ $name: 'tag', $color: 'red' });
+                for (const line of await db.getAllAsync('SELECT * FROM tags')) {
+                    console.log(line);
+                };
             };
         };
     } finally {
