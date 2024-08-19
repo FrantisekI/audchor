@@ -12,7 +12,7 @@ export default function Layout() {
                 // Initialize database
                 await initDatabase().then(() => {
                     setInitialized(true)
-                    console.log('Database initialized')});
+                    });
 
                 // Request permissions
                 const { status } = await MediaLibrary.requestPermissionsAsync();
@@ -29,8 +29,8 @@ export default function Layout() {
                 // Process each music file
                 if (initialized) {
                     // console.log(media.assets);
-                    addMultipleSongs(media.assets);
-                    console.log('Songs added');
+                    addMultipleSongs(media.assets).then(() => {
+                    console.log('Songs added');});
                 }
                 //
                 console.log('Initialization complete');

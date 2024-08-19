@@ -1,5 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 import * as MediaLibrary from 'expo-media-library';
+import readline from 'readline';
 
 interface songs {
     id: number;
@@ -9,6 +10,10 @@ interface songs {
 
 const initDatabase = async () => {
     const db = await SQLite.openDatabaseAsync('MainDB');
+    await db.execAsync('DROP TABLE IF EXISTS songs');
+    await db.execAsync('DROP TABLE IF EXISTS tags');
+    await db.execAsync('DROP TABLE IF EXISTS attributes');
+    await db.execAsync('DROP TABLE IF EXISTS song_tags');
     try {
         await db.execAsync(`
         PRAGMA journal_mode = WAL;
@@ -38,6 +43,8 @@ const initDatabase = async () => {
         `);
 
         console.log('Database initialized');
+
+        console.log('Tables cleared');
     } catch (e) {
         console.log(e);
     };
@@ -52,104 +59,76 @@ const initDatabase = async () => {
   };*/
 
 
-const addSong = async (name: string, pathto: string): Promise<void> => {
-    const db = await SQLite.openDatabaseAsync('MainDB');
-    if (!db) throw new Error('Database not initialized');
-
-    const prepareAddSong = await db.prepareAsync(
-        'INSERT OR IGNORE INTO songs (name, pathto) VALUES ($name, $pathto)'
-    );
-
-
-    const prepareAddTag = await db.prepareAsync(
-        'INSERT OR IGNORE INTO tags (name, color) VALUES ($name, $color)'
-    );
-
-    const prepareAddSongTag = await db.prepareAsync(
-        'INSERT OR IGNORE INTO song_tags (song_id, tag_id) VALUES ($song_id, $tag_id)'
-    );
-
-    try {
-        let result = await prepareAddSong.executeAsync({ $name: name, $pathto: pathto });
-        console.log(result.lastInsertRowId, result.changes);
-    } finally {
-        await prepareAddSong.finalizeAsync();
-    }
-
-};
-
 const addMultipleSongs = async (assets: MediaLibrary.Asset[]): Promise<void> => {
-    console.log(assets);
+    //console.log(assets);
     console.log('bob');
     const db = await SQLite.openDatabaseAsync('MainDB');
     if (!db) throw new Error('Database not initialized');
 
-    const statement = await db.prepareAsync(
-        'INSERT INTO songs (name, pathto) VALUES ($name, $pathto) ON CONFLICT($name) DO NOTHING'
+    const prepareAddSong = await db.prepareAsync(
+        'INSERT INTO songs (name, pathto) VALUES ($name, $pathto)'
     );
 
     const prepareAddTag = await db.prepareAsync(
-        'INSERT OR IGNORE INTO tags (name, color) VALUES ($name, $color)'
+        'INSERT INTO tags (name, color) VALUES ($name, $color)'
     );
 
-    const prepareAddSongTag = await db.prepareAsync(
-        'INSERT OR IGNORE INTO song_tags (song_id, tag_id) VALUES ($song_id, $tag_id)'
-    );
-    const assets2 = [{
-        "albumId": "540528482", "creationTime": 0, "duration": 175.047, "filename": "Dua Lipa - Dance The Night (From Barbie The Album) [Official Music Video].mp3", "height": 0, "id": "31", "mediaType": "audio", "modificationTime": 1706198494000, "uri": "file:///storage/emulated/0/Download/Dua Lipa - Dance The Night (From Barbie The Album) [Official Music Video].mp3", "width": 0
-    }, {
-        "albumId": "82896267", "creationTime": 0, "duration": 203.964, "filename": "Pdmořský svět 2.mp3", "height": 0, "id": "33", "mediaType": "audio", "modificationTime": 1723550145000, "uri": "file:///storage/emulated/0/Music/Pdmořský svět 2.mp3", "width": 0
-    }];
-    assets2.forEach((asset) => {
-        console.log('lol');
+    /*const prepareAddSongTag = await db.prepareAsync(
+        'INSERT INTO song_tags (song_id, tag_id) VALUES ($song_id, $tag_id)'
+    );*/
+
+    assets.forEach((asset) => {
         console.log(asset);
     });
 
     for (const asset of assets) {
-        console.log('lol2');
         console.log(asset);
-    }
-    try {
-        for (const asset of assets) {
-            console.log(asset);
-            if (await db.getFirstAsync(`SELECT id FROM songs WHERE 
-                name = $name`) == null) {
+        if (await db.getFirstAsync(`SELECT id FROM songs WHERE name = $name`, { $name: asset.filename }) == null) {
 
-                let result = await statement.executeAsync({ $name: asset.filename, $pathto: asset.uri });
-                console.log(result);
+            try {
+                let result = await prepareAddSong.executeAsync({ $name: asset.filename, $pathto: asset.uri });
+                console.log('result', result);
 
                 const tagsByPath = asset.uri.split('/');
                 const tags = tagsByPath.slice(5, tagsByPath.length - 1);
                 for (const tag of tags) {
-                    console.log('for');
+                    console.log('tag', tag);
                     const tagExist = await db.getFirstAsync(`SELECT id FROM tags WHERE name = $name`, { $name: tag }) as { id: number }[];
-                    let tagId : number;
+                    let tagId: number;
                     if (tagExist == null) {
-                        let tagResult = await prepareAddTag.executeAsync({ $name: tag, $color: 'pink' });
-                        console.log(tagResult);
-                        tagId = tagResult.lastInsertRowId;
+                        try {
+                            let tagResult = await prepareAddTag.executeAsync({ $name: tag, $color: 'pink' });
+                            console.log('tagResult', tagResult);
+                            tagId = tagResult.lastInsertRowId;
+                        }
+                        finally {
+                            await prepareAddTag.finalizeAsync();
+                        }
                     }
                     else {
                         tagId = tagExist[0].id;
                         console.log('Tag already exists');
                     }
                     //add song tag relation
-                    let songTagResult = await prepareAddSongTag.executeAsync({ $song_id: result.lastInsertRowId, $tag_id: tagId });
-                    
+
+                    let songTagResult = await db.execAsync(`INSERT INTO song_tags (song_id, tag_id) VALUES (${result.lastInsertRowId}, ${tagId})`);
+                    // prepareAddSongTag.executeAsync({ $song_id: result.lastInsertRowId, $tag_id: tagId });
+
                 }
-                console.log(tags);
-                let tag = await prepareAddTag.executeAsync({ $name: 'tag', $color: 'red' });
-                for (const line of await db.getAllAsync('SELECT * FROM tags')) {
-                    console.log(line);
-                };
-            } else {
-                console.log('Song already exists');
+                console.log('tags', tags);
+
+            } finally {
+                await prepareAddSong.finalizeAsync();
             };
+            console.log('it had happened');
+        } else {
+            console.log('Song already exists');
         };
-    } finally {
-        await statement.finalizeAsync();
+    };
+    for (const line of await db.getAllAsync('SELECT * FROM songs')) {
+        console.log(line);
     };
     console.log('Songs added sidf');
 };
 
-export { initDatabase, addSong, addMultipleSongs };
+export { initDatabase, addMultipleSongs };
