@@ -79,7 +79,8 @@ const addSong = async (name: string, pathto: string): Promise<void> => {
 };
 
 const addMultipleSongs = async (assets: MediaLibrary.Asset[]): Promise<void> => {
-    console.log('bob')
+    console.log(assets);
+    console.log('bob');
     const db = await SQLite.openDatabaseAsync('MainDB');
     if (!db) throw new Error('Database not initialized');
 
@@ -94,21 +95,33 @@ const addMultipleSongs = async (assets: MediaLibrary.Asset[]): Promise<void> => 
     const prepareAddSongTag = await db.prepareAsync(
         'INSERT OR IGNORE INTO song_tags (song_id, tag_id) VALUES ($song_id, $tag_id)'
     );
+    const assets2 = [{
+        "albumId": "540528482", "creationTime": 0, "duration": 175.047, "filename": "Dua Lipa - Dance The Night (From Barbie The Album) [Official Music Video].mp3", "height": 0, "id": "31", "mediaType": "audio", "modificationTime": 1706198494000, "uri": "file:///storage/emulated/0/Download/Dua Lipa - Dance The Night (From Barbie The Album) [Official Music Video].mp3", "width": 0
+    }, {
+        "albumId": "82896267", "creationTime": 0, "duration": 203.964, "filename": "Pdmořský svět 2.mp3", "height": 0, "id": "33", "mediaType": "audio", "modificationTime": 1723550145000, "uri": "file:///storage/emulated/0/Music/Pdmořský svět 2.mp3", "width": 0
+    }];
+    assets2.forEach((asset) => {
+        console.log('lol');
+        console.log(asset);
+    });
 
+    for (const asset of assets) {
+        console.log('lol2');
+        console.log(asset);
+    }
     try {
         for (const asset of assets) {
+            console.log(asset);
             if (await db.getFirstAsync(`SELECT id FROM songs WHERE 
                 name = $name`) == null) {
 
                 let result = await statement.executeAsync({ $name: asset.filename, $pathto: asset.uri });
                 console.log(result);
 
-
-
-
                 const tagsByPath = asset.uri.split('/');
                 const tags = tagsByPath.slice(5, tagsByPath.length - 1);
                 for (const tag of tags) {
+                    console.log('for');
                     const tagExist = await db.getFirstAsync(`SELECT id FROM tags WHERE name = $name`, { $name: tag }) as { id: number }[];
                     let tagId : number;
                     if (tagExist == null) {
@@ -129,11 +142,14 @@ const addMultipleSongs = async (assets: MediaLibrary.Asset[]): Promise<void> => 
                 for (const line of await db.getAllAsync('SELECT * FROM tags')) {
                     console.log(line);
                 };
+            } else {
+                console.log('Song already exists');
             };
         };
     } finally {
         await statement.finalizeAsync();
     };
+    console.log('Songs added sidf');
 };
 
 export { initDatabase, addSong, addMultipleSongs };

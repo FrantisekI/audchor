@@ -28,6 +28,7 @@ export default function Layout() {
 
                 // Process each music file
                 if (initialized) {
+                    // console.log(media.assets);
                     addMultipleSongs(media.assets);
                     console.log('Songs added');
                 }
