@@ -71,7 +71,7 @@ const initDatabase = async () => {
 
 const addMultipleSongs = async (assets: MediaLibrary.Asset[]): Promise<void> => {
     const db = await SQLite.openDatabaseAsync('MainDB');
-    if (!db) throw new Error('Database not initialized');
+    if (!db) initDatabase();
 
 
     for (const asset of assets) {

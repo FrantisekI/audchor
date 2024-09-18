@@ -15,30 +15,21 @@ export default function Layout() {
                     console.error('Media library permission not granted');
                     return;
                 }
-                
 
-                // Get music files
                 const media = await MediaLibrary.getAssetsAsync({
                     mediaType: 'audio',
                 });
-                // Initialize database
+
                 await initDatabase().then(() => {
                     setInitialized(true);
-                    console.log('x Database initialized' + initialized);
-                    console.log('x initilized' + initialized);
+
                     if (initialized) {
-                        // console.log(media.assets);
-                    
                         addMultipleSongs(media.assets).then(() => {
-                        console.log('x Songs added');});
+                            console.log('x Songs added');
+                        });
                     }
-                    });
+                });
 
-                // Request permissions
-
-                // Process each music file
-                //
-                console.log('x Initialization complete');
             } catch (error) {
                 console.error('Error during initialization:', error);
             }
